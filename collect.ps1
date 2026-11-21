@@ -23,9 +23,16 @@ function Get-Body($url, $id) {
                 $file = [IO.Path]::GetTempFileName()
                 try {
                     $curl = if ($env:OS -eq 'Windows_NT') { 'curl.exe' } else { 'curl' }
-                    $status = & $curl --silent --show-error --location --max-redirs 5 --max-time 20 --user-agent 'DailyBrief/1.0 (news feed reader)' --output $file --write-out '%{http_code} %{content_type}' $url
+                    $status = & $curl --silent --show-error --compressed --location --max-redirs 5 --max-time 20 --user-agent 'DailyBrief/1.0 (news feed reader)' --output $file --write-out '%{http_code} %{content_type}' $url
                     if ($LASTEXITCODE -ne 0 -or $status -notmatch '^200\s') { throw "HTTP $status (curl exit $LASTEXITCODE)" }
-                    return [IO.File]::ReadAllText($file)
+                    $bytes = [IO.File]::ReadAllBytes($file)
+                    if ($bytes.Length -ge 2 -and $bytes[0] -eq 31 -and $bytes[1] -eq 139) {
+                        $memory = [IO.MemoryStream]::new($bytes)
+                        $gzip = [IO.Compression.GZipStream]::new($memory,[IO.Compression.CompressionMode]::Decompress)
+                        $reader = [IO.StreamReader]::new($gzip,[Text.Encoding]::UTF8)
+                        try { return $reader.ReadToEnd() } finally { $reader.Dispose() }
+                    }
+                    return [Text.Encoding]::UTF8.GetString($bytes)
                 } finally {
                     [IO.File]::Delete($file)
                 }
@@ -95,8 +102,8 @@ function Read-C3Listing($source) {
         $pageTitle = Get-PlainText ([regex]::Match($html,'(?is)<title[^>]*>(.*?)</title>').Groups[1].Value)
         if ($pageTitle.Length -gt 90) { $pageTitle = $pageTitle.Substring(0,90) }
         $hasHeadings = $html.Contains('jeg_post_title')
-        $challenge = $html -match 'cf-chl|challenges\.cloudflare\.com|Checking your browser|Just a moment|captcha'
-        throw "C3 listing format not recognized (title: $pageTitle; size: $($html.Length); article headings: $hasHeadings; verification page: $challenge)"
+        $challenge = $html -match 'cf-chl|challenges\.cloudflare\.com|Checking your browser|Just a moment|captcha|document\.cookie|enable javascript'
+        throw "C3 listing format not recognized (title: $pageTitle; size: $($html.Length); article headings: $hasHeadings; verification page: $challenge; script: $($html.Contains('<script')); markup: $($html.TrimStart().StartsWith('<')))"
     }
     foreach ($card in $cards) {
         $heading = [regex]::Match($card.Value,'(?is)<h[23] class="jeg_post_title">\s*<a href="(?<url>[^"]+)"[^>]*>(?<title>.*?)</a>')
