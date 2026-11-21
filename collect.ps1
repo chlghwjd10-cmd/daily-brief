@@ -156,6 +156,7 @@ function Read-Feed($source) {
         $date = [string]$entry.SelectSingleNode('pubDate').InnerText
         $description = Get-PlainText ($entry.SelectSingleNode('description').InnerText)
         $description = $description -replace '^\([^)]{2,65}\)\s*[^=]{0,35}=\s*',''
+        if ($source.category -eq 'kr-news' -and $title -match '^\s*[\[【]\s*(부고|인사)\s*[\]】]') { continue }
         $category = $source.category
         if ($source.id -eq 'arch') {
             $tags = ($entry.SelectNodes('category') | ForEach-Object { $_.InnerText }) -join ' '
@@ -169,6 +170,7 @@ function Read-Feed($source) {
         $summary = if ($description) { ($description -split '(?<=[.!?。])\s+', 2)[0] } else { '' }
         if ($summary.Length -gt 180) { $summary = $summary.Substring(0,180).TrimEnd() + '…' }
         if (!$summary -or $summary -eq $title -or $summary -match '^Read more') { $summary = '출처에서 별도의 요약을 제공하지 않았습니다.' }
+        if ($source.linksOnly) { $summary = '세부 내용은 언론사 원문에서 확인할 수 있습니다.' }
         New-ItemRecord $source $category $title $link $date $summary
     }
 }
@@ -261,9 +263,11 @@ $seenUrls = @{}
 $seenTitles = @{}
 $counts = @{}
 $architectureCounts = @{}
+$publisherCounts = @{}
+$domesticFeedCounts = @{}
 $priority = @{
     Expression = {
-        if ($_.category -in @('kr-arch','world-arch') -and $_.sourceId -in @('c3','space','yna-social','yna-economy','world','world-business')) { 0 } else { 1 }
+        if ($_.category -in @('kr-arch','world-arch') -and $_.sourceId -match '^(c3|space|world(-business)?|(yna|sbs|donga|mk)-(social|economy))$') { 0 } else { 1 }
     }
     Ascending = $true
 }
@@ -272,10 +276,16 @@ $digest = @(foreach ($item in ($items | Sort-Object @{Expression={ [bool]$_.cach
     if ($seenUrls.ContainsKey($item.key) -or ($headline.Length -ge 12 -and $seenTitles.ContainsKey($headline))) { continue }
     if ([int]$counts[$item.category] -ge 12) { continue }
     if ($item.category -in @('kr-arch','world-arch') -and $item.sourceId -ne 'arch') {
-        $group = if ($item.sourceId -in @('yna-social','yna-economy','world','world-business')) { 'general' } else { $item.sourceId }
+        $group = if ($item.sourceId -match '^(world(-business)?|(yna|sbs|donga|mk)-(social|economy))$') { 'general' } else { $item.sourceId }
         $slot = "$($item.category)/$group"
         if ([int]$architectureCounts[$slot] -ge 6) { continue }
         $architectureCounts[$slot] = 1 + [int]$architectureCounts[$slot]
+    }
+    if ($item.category -eq 'kr-news') {
+        $publisher = ($item.sourceId -split '-', 2)[0]
+        if ([int]$publisherCounts[$publisher] -ge 3 -or [int]$domesticFeedCounts[$item.sourceId] -ge 2) { continue }
+        $publisherCounts[$publisher] = 1 + [int]$publisherCounts[$publisher]
+        $domesticFeedCounts[$item.sourceId] = 1 + [int]$domesticFeedCounts[$item.sourceId]
     }
     $seenUrls[$item.key] = $true
     $seenTitles[$headline] = $true

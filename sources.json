@@ -89,5 +89,65 @@
         "host":  "^project\\.seoul\\.go\\.kr$",
         "info":  "https://project.seoul.go.kr/main/viewMain.do",
         "url":  "https://project.seoul.go.kr/view/viewListNotice.do?noticeType=CPTT"
+    },
+    {
+        "id":  "sbs-social",
+        "category":  "kr-news",
+        "info":  "https://news.sbs.co.kr/news/rss.do",
+        "linksOnly":  true,
+        "url":  "https://news.sbs.co.kr/news/SectionRssFeed.do?sectionId=03\u0026plink=RSSREADER",
+        "host":  "(^|\\.)sbs\\.co\\.kr$",
+        "name":  "SBS 뉴스 · 사회",
+        "days":  2
+    },
+    {
+        "id":  "sbs-economy",
+        "category":  "kr-news",
+        "info":  "https://news.sbs.co.kr/news/rss.do",
+        "linksOnly":  true,
+        "url":  "https://news.sbs.co.kr/news/SectionRssFeed.do?sectionId=02\u0026plink=RSSREADER",
+        "host":  "(^|\\.)sbs\\.co\\.kr$",
+        "name":  "SBS 뉴스 · 경제",
+        "days":  2
+    },
+    {
+        "id":  "donga-social",
+        "category":  "kr-news",
+        "info":  "https://rss.donga.com/",
+        "linksOnly":  true,
+        "url":  "https://rss.donga.com/national.xml",
+        "host":  "(^|\\.)donga\\.com$",
+        "name":  "동아일보 · 사회",
+        "days":  2
+    },
+    {
+        "id":  "donga-economy",
+        "category":  "kr-news",
+        "info":  "https://rss.donga.com/",
+        "linksOnly":  true,
+        "url":  "https://rss.donga.com/economy.xml",
+        "host":  "(^|\\.)donga\\.com$",
+        "name":  "동아일보 · 경제",
+        "days":  2
+    },
+    {
+        "id":  "mk-social",
+        "category":  "kr-news",
+        "info":  "https://www.mk.co.kr/rss/",
+        "linksOnly":  true,
+        "url":  "https://www.mk.co.kr/rss/50400012/",
+        "host":  "(^|\\.)mk\\.co\\.kr$",
+        "name":  "매일경제 · 사회",
+        "days":  2
+    },
+    {
+        "id":  "mk-economy",
+        "category":  "kr-news",
+        "info":  "https://www.mk.co.kr/rss/",
+        "linksOnly":  true,
+        "url":  "https://www.mk.co.kr/rss/30100041/",
+        "host":  "(^|\\.)mk\\.co\\.kr$",
+        "name":  "매일경제 · 경제",
+        "days":  2
     }
 ]
