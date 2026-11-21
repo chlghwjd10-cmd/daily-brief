@@ -1,13 +1,8 @@
 'use strict';
 
-const categories = {
-  'kr-news': '국내 사회·경제',
-  'world-news': '해외 사회·경제',
-  'kr-arch': '국내 건축이슈',
-  'world-arch': '해외 건축이슈',
-  competition: '건축공모',
-  practice: '건축사·업계',
-};
+const regions = { kr: '국내', world: '해외' };
+const topics = { society: '사회', economy: '경제', architecture: '건축' };
+const ARCHIVE_SECTIONS = { competition: '건축공모', practice: '건축사·업계' };
 const el = id => document.getElementById(id);
 const archive = el('archive');
 const filters = el('filters');
@@ -17,7 +12,8 @@ const timeZone = 'Asia/Seoul';
 const issueDate = new Intl.DateTimeFormat('ko-KR', { dateStyle: 'full', timeZone });
 const stamp = new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short', timeZone });
 const dayParts = new Intl.DateTimeFormat('en-CA', {year:'numeric', month:'2-digit', day:'2-digit', timeZone});
-let selected = 'all';
+let region = 'kr';
+let topic = 'society';
 let edition = null;
 let request = 0;
 
@@ -49,8 +45,8 @@ function setStatus(label, warning = false) {
   statusBox.classList.toggle('warn', warning);
 }
 
-function card(item) {
-  const article = node('article');
+function card(item, featured = false) {
+  const article = node('article', undefined, featured ? 'story-feature' : 'story');
   const meta = node('p', item.source + ' · ', 'meta');
   const date = node('time', item.published.slice(0, 10));
   date.dateTime = item.published;
@@ -58,33 +54,78 @@ function card(item) {
   if (item.cached) meta.append(' · 이전 수집분');
   const link = external('원문 보기', item.url);
   link.setAttribute('aria-label', item.title + ' 원문 보기');
-  article.append(meta, node('h3', item.title), node('p', item.summary), link);
+  article.append(meta, node('h3', item.title));
+  if (item.summary && !/^(세부 내용은 언론사 원문|출처에서 별도의 요약)/.test(item.summary)) {
+    article.append(node('p', item.summary, 'story-summary'));
+  }
+  article.append(link);
   return article;
+}
+
+function desk(item) {
+  return item.desk || (/(?:-economy|-business)$/.test(item.sourceId) ? 'economy' : 'society');
+}
+
+function newsOrder(a, b) {
+  return Number(Boolean(a.cached)) - Number(Boolean(b.cached)) ||
+    (b.importance ?? 0) - (a.importance ?? 0) ||
+    b.published.localeCompare(a.published);
+}
+
+function groupSection(label, tone, items) {
+  const section = node('section', undefined, 'article-section');
+  section.dataset.tone = tone;
+  const header = node('div', undefined, 'section-heading');
+  header.append(node('h2', label), node('span', items.length + '건'));
+  section.append(header);
+  if (!items.length) {
+    section.append(node('p', '이 아침판에 표시할 항목이 없습니다.', 'empty'));
+    return section;
+  }
+  const featured = node('div', undefined, 'lead-grid');
+  featured.append(...items.slice(0, 2).map(item => card(item, true)));
+  section.append(featured);
+  if (items.length > 2) {
+    const rest = node('div', undefined, 'card-grid');
+    rest.append(...items.slice(2).map(item => card(item)));
+    section.append(rest);
+  }
+  return section;
 }
 
 function showArticles() {
   if (!edition) return;
-  const sections = document.createDocumentFragment();
-  for (const [id, label] of Object.entries(categories)) {
-    if (selected !== 'all' && selected !== id) continue;
-    const items = edition.items.filter(item => item.category === id);
-    const section = node('section');
-    const heading = node('h2', label);
-    heading.append(node('span', items.length + '건'));
-    section.append(heading);
-    if (items.length) {
-      const grid = node('div', undefined, 'grid');
-      grid.append(...items.map(card));
-      section.append(grid);
-    } else {
-      section.append(node('p', '이 아침판에 표시할 항목이 없습니다.', 'empty'));
+  const sections = [];
+  if (topic === 'architecture') {
+    const kinds = [[region + '-arch', regions[region] + ' 건축이슈']];
+    if (region === 'kr') kinds.push(...Object.entries(ARCHIVE_SECTIONS));
+    for (const [id, label] of kinds) {
+      sections.push(groupSection(label, topic, edition.items.filter(item => item.category === id)));
     }
-    sections.append(section);
+  } else {
+    const items = edition.items.filter(item => item.category === region + '-news' && desk(item) === topic)
+      .sort(newsOrder).slice(0, 4);
+    sections.push(groupSection(regions[region] + ' ' + topics[topic], topic, items));
   }
-  articles.replaceChildren(sections);
+  articles.replaceChildren(...sections);
   for (const button of filters.querySelectorAll('button')) {
-    button.setAttribute('aria-pressed', String(button.dataset.category === selected));
+    const active = button.dataset.region === region || button.dataset.topic === topic;
+    button.setAttribute('aria-pressed', String(active));
   }
+}
+
+function makeTabs(label, className, choices, key) {
+  const row = node('div', undefined, 'tab-row ' + className);
+  row.setAttribute('role', 'group');
+  row.setAttribute('aria-label', label);
+  for (const [id, text] of Object.entries(choices)) {
+    const button = node('button', text);
+    button.type = 'button';
+    button.dataset[key] = id;
+    button.setAttribute('aria-controls', 'articles');
+    row.append(button);
+  }
+  return row;
 }
 
 async function openEdition(date) {
@@ -133,18 +174,16 @@ async function openEdition(date) {
   }
 }
 
-for (const [id, label] of Object.entries({all:'전체', ...categories})) {
-  const button = node('button', label);
-  button.type = 'button';
-  button.dataset.category = id;
-  button.setAttribute('aria-pressed', String(id === selected));
-  filters.append(button);
-}
+filters.append(
+  makeTabs('지역', 'region-tabs', regions, 'region'),
+  makeTabs('분야', 'topic-tabs', topics, 'topic'),
+);
 filters.addEventListener('click', event => {
-  if (event.target.matches('button[data-category]')) {
-    selected = event.target.dataset.category;
-    showArticles();
-  }
+  const button = event.target.closest('button');
+  if (!button) return;
+  if (button.dataset.region) region = button.dataset.region;
+  if (button.dataset.topic) topic = button.dataset.topic;
+  showArticles();
 });
 archive.addEventListener('change', () => {
   const url = new URL(location.href);

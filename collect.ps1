@@ -62,6 +62,16 @@ function Parse-Date([string]$value) {
     }
 }
 
+function Get-NewsImportance([string]$title) {
+    $score = 0
+    if ($title -match '기준금리|금리\s*(인상|인하|동결)|물가|고용|실업|소비자물가|관세|예산안|추경|경제성장률|수출입|경기침체|\b(interest rates?|inflation|unemployment|tariffs?|recession|national budget|GDP)\b') { $score += 4 }
+    if ($title -match '대법원|헌법재판소|법안\s*(통과|발의)|정부\s*(대책|발표)|전국|총파업|재난|대피령|사망자|안전기준|\b(supreme court|national strike|evacuation|state of emergency|major earthquake|public health)\b') { $score += 4 }
+    if ($title -match '한국은행|기획재정부|국회|교육부|보건복지부|정부|국가|\b(central bank|government|parliament|federal|nationwide)\b') { $score += 1 }
+    if ($title -match '결과|확정|발표|시행|통과|법원|집계|\b(announces?|confirms?|approves?|passes|ruling|official data)\b') { $score += 1 }
+    if ($title -match '^\s*\[(날씨|인사|부고|포토)\]|단신|동정|\b(weather forecast|photo gallery)\b') { $score -= 3 }
+    return $score
+}
+
 function New-ItemRecord($source, $category, $title, $link, $dateText, $summary) {
     $date = Parse-Date $dateText
     if (!$title -or !$date -or $date -gt $now -or $date -lt $now.AddDays(-$source.days)) { return }
@@ -70,11 +80,16 @@ function New-ItemRecord($source, $category, $title, $link, $dateText, $summary) 
     $canonical = [UriBuilder]::new($url)
     $canonical.Fragment = ''
     $canonical.Query = (($url.Query.TrimStart('?') -split '&' | Where-Object { $_ -and $_ -notmatch '^(utm_[^=]+|fbclid|gclid|at_[^=]+|input|ref|from)=' } | Sort-Object) -join '&')
-    return @{
+    $record = @{
         sourceId = $source.id; source = $source.name; category = $category
         title = $title; url = $url.AbsoluteUri; key = $canonical.Uri.Host + $canonical.Uri.PathAndQuery.TrimEnd('/')
         published = $date.ToString('o'); summary = $summary
     }
+    if ($category -in @('kr-news','world-news')) {
+        $record.desk = if ($source.id -match '-(economy|business)$') { 'economy' } else { 'society' }
+        $record.importance = Get-NewsImportance $title
+    }
+    return $record
 }
 
 function Get-GeneralArchitectureCategory($source, $title, $description) {
@@ -265,16 +280,26 @@ $counts = @{}
 $architectureCounts = @{}
 $publisherCounts = @{}
 $domesticFeedCounts = @{}
+$deskCounts = @{}
 $priority = @{
     Expression = {
         if ($_.category -in @('kr-arch','world-arch') -and $_.sourceId -match '^(c3|space|world(-business)?|(yna|sbs|donga|mk)-(social|economy))$') { 0 } else { 1 }
     }
     Ascending = $true
 }
-$digest = @(foreach ($item in ($items | Sort-Object @{Expression={ [bool]$_.cached }; Ascending=$true}, $priority, @{Expression={$_.published}; Descending=$true})) {
+$digest = @(foreach ($item in ($items | Sort-Object @{Expression={ [bool]$_.cached }; Ascending=$true}, $priority, @{Expression={[int]$_.importance}; Descending=$true}, @{Expression={$_.published}; Descending=$true})) {
     $headline = ($item.title.Normalize([Text.NormalizationForm]::FormKC).ToLowerInvariant() -replace '[^\p{L}\p{N}]','')
     if ($seenUrls.ContainsKey($item.key) -or ($headline.Length -ge 12 -and $seenTitles.ContainsKey($headline))) { continue }
     if ([int]$counts[$item.category] -ge 12) { continue }
+    $deskKey = $null
+    if ($item.category -in @('kr-news','world-news')) {
+        if (!$item.desk) {
+            $item.desk = if ($item.sourceId -match '-(economy|business)$') { 'economy' } else { 'society' }
+            $item.importance = Get-NewsImportance $item.title
+        }
+        $deskKey = "$($item.category)/$($item.desk)"
+        if ([int]$deskCounts[$deskKey] -ge 4) { continue }
+    }
     if ($item.category -in @('kr-arch','world-arch') -and $item.sourceId -ne 'arch') {
         $group = if ($item.sourceId -match '^(world(-business)?|(yna|sbs|donga|mk)-(social|economy))$') { 'general' } else { $item.sourceId }
         $slot = "$($item.category)/$group"
@@ -287,6 +312,7 @@ $digest = @(foreach ($item in ($items | Sort-Object @{Expression={ [bool]$_.cach
         $publisherCounts[$publisher] = 1 + [int]$publisherCounts[$publisher]
         $domesticFeedCounts[$item.sourceId] = 1 + [int]$domesticFeedCounts[$item.sourceId]
     }
+    if ($deskKey) { $deskCounts[$deskKey] = 1 + [int]$deskCounts[$deskKey] }
     $seenUrls[$item.key] = $true
     $seenTitles[$headline] = $true
     $counts[$item.category] = 1 + [int]$counts[$item.category]
