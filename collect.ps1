@@ -19,6 +19,17 @@ function Get-Body($url, $id) {
     }
     for ($attempt = 1; $attempt -le 2; $attempt++) {
         try {
+            if ($id -eq 'arch') {
+                $file = [IO.Path]::GetTempFileName()
+                try {
+                    $curl = if ($env:OS -eq 'Windows_NT') { 'curl.exe' } else { 'curl' }
+                    $status = & $curl --silent --show-error --location --max-redirs 5 --max-time 20 --user-agent 'DailyBrief/1.0 (news feed reader)' --output $file --write-out '%{http_code}' $url
+                    if ($LASTEXITCODE -ne 0 -or $status -ne '200') { throw "HTTP $status (curl exit $LASTEXITCODE)" }
+                    return [IO.File]::ReadAllText($file)
+                } finally {
+                    [IO.File]::Delete($file)
+                }
+            }
             $response = Invoke-WebRequest -UseBasicParsing -Uri $url -TimeoutSec 20 -UserAgent 'DailyBrief/1.0 (news feed reader)'
             if ($response.Content -is [byte[]]) { return [Text.Encoding]::UTF8.GetString($response.Content) }
             return $response.Content
@@ -155,7 +166,7 @@ $statuses = foreach ($source in $sources) {
                     $challenge = $response.Headers -and ($response.Headers | Out-String) -match 'cf-mitigated'
                     Write-Warning "ArchDaily RSS returned HTTP $([int]$response.StatusCode); challenge header: $challenge"
                 } else {
-                    Write-Warning "ArchDaily RSS: $($_.Exception.Message)"
+                    Write-Warning "ArchDaily RSS: $($_.Exception.Message). $($_.ScriptStackTrace)"
                 }
             } else {
                 Write-Warning "$($source.id): collection failed ($($_.Exception.GetType().Name))"
