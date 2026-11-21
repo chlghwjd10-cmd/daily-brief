@@ -1,6 +1,6 @@
 'use strict';
 
-const regions = { kr: '국내', world: '해외' };
+const regions = { issue: '어제의 ISSUE', kr: '국내', world: '해외' };
 const topics = { society: '사회', economy: '경제', architecture: '건축' };
 const ARCHIVE_SECTIONS = { competition: '건축공모', practice: '건축사·업계' };
 const el = id => document.getElementById(id);
@@ -12,7 +12,8 @@ const timeZone = 'Asia/Seoul';
 const issueDate = new Intl.DateTimeFormat('ko-KR', { dateStyle: 'full', timeZone });
 const stamp = new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short', timeZone });
 const dayParts = new Intl.DateTimeFormat('en-CA', {year:'numeric', month:'2-digit', day:'2-digit', timeZone});
-let region = 'kr';
+let region = 'issue';
+let issueIndex = 0;
 let topic = 'society';
 let edition = null;
 let request = 0;
@@ -93,8 +94,168 @@ function groupSection(label, tone, items) {
   return section;
 }
 
+const issueSection = { society: '사회', economy: '경제', architecture: '건축' };
+const issueArts = {
+  civic: '시민과 공공기관을 그린 일러스트',
+  economy: '금융시장과 화폐를 그린 일러스트',
+  architecture: '건물과 설계 도면을 그린 일러스트',
+  world: '지구와 국제 교류를 그린 일러스트',
+  safety: '도시의 날씨와 안전을 그린 일러스트',
+  technology: '반도체와 전력망을 그린 일러스트',
+};
+
+function issueKind(item) {
+  if (item.category === 'competition' || item.category === 'practice' || item.category.endsWith('-arch')) return 'architecture';
+  return desk(item);
+}
+
+function issueArt(item, kind) {
+  if (kind === 'architecture') return 'architecture';
+  if (/폭우|폭설|지진|태풍|재난|산불|대피|\b(flood|storm|earthquake|wildfire|evacuat)/i.test(item.title)) return 'safety';
+  if (/반도체|인공지능|전력망|\b(AI|semiconductors?|chips?|power grid)\b/i.test(item.title)) return 'technology';
+  if (kind === 'economy') return 'economy';
+  return item.category.startsWith('world') ? 'world' : 'civic';
+}
+
+function previousDate(date) {
+  const value = new Date(date + 'T00:00:00Z');
+  value.setUTCDate(value.getUTCDate() - 1);
+  return value.toISOString().slice(0, 10);
+}
+
+function recapItems() {
+  if (Array.isArray(edition.issues)) return edition.issues;
+  const groups = new Set();
+  return edition.items.filter(item => !item.cached && item.published.startsWith(previousDate(edition.date)) &&
+    item.summary?.length >= 28 && !/^(세부 내용은|기사 내용은|출처에서 별도의 요약|건축공간연구원)/.test(item.summary))
+    .sort(newsOrder).filter(item => {
+      const kind = issueKind(item);
+      const group = kind === 'architecture' ? kind : item.category + '/' + kind;
+      if (groups.has(group)) return false;
+      groups.add(group);
+      return true;
+    });
+}
+
+function shortRecap(value) {
+  const text = value.replace(/\s+/g, ' ').trim();
+  const limit = /[가-힣]/.test(text) ? 115 : 145;
+  if (text.length <= limit) return text;
+  const slice = text.slice(0, limit);
+  const boundary = slice.lastIndexOf(' ');
+  return (boundary >= limit * 0.8 ? slice.slice(0, boundary) : slice).replace(/[\s.,…]+$/, '') + '…';
+}
+
+function showIssue() {
+  const list = recapItems();
+  const date = edition.issueDate || previousDate(edition.date);
+  const section = node('section', undefined, 'issue-section');
+  section.setAttribute('aria-label', '어제의 ISSUE');
+  const header = node('div', undefined, 'issue-heading');
+  const day = node('time', issueDate.format(new Date(date + 'T00:00:00+09:00')));
+  day.dateTime = date;
+  header.append(node('h2', '어제의 ISSUE'), day);
+  section.append(header);
+  if (!list.length) {
+    section.append(node('p', '전날 발행 기사 중 이 아침판에서 확인할 수 있는 요약이 없습니다.', 'empty'));
+    articles.replaceChildren(section);
+    return;
+  }
+
+  const frame = node('div', undefined, 'issue-carousel');
+  frame.setAttribute('aria-roledescription','슬라이드 모음');
+  frame.setAttribute('role','group');
+  frame.setAttribute('aria-label','전날 주요 뉴스');
+  const viewport = node('div', undefined, 'issue-viewport');
+  viewport.setAttribute('aria-live', 'polite');
+  const controls = node('div', undefined, 'issue-controls');
+  const dots = node('div', undefined, 'issue-dots');
+  const progress = node('span', undefined, 'issue-progress');
+  const back = node('button', '이전');
+  const next = node('button', '다음');
+  back.type = next.type = 'button';
+  back.setAttribute('aria-label','이전 이슈');
+  next.setAttribute('aria-label','다음 이슈');
+  controls.append(back, dots, progress, next);
+  frame.append(viewport);
+  if (list.length > 1) frame.append(controls);
+  let firstTouch = null;
+
+  function change(index) {
+    issueIndex = Math.min(list.length - 1, Math.max(0, index));
+    const item = list[issueIndex];
+    const kind = issueKind(item);
+    const art = issueArt(item, kind);
+    const story = node('article', undefined, 'issue-card');
+    story.setAttribute('aria-label', String(issueIndex + 1) + ' / ' + list.length);
+    const picture = node('div', undefined, 'issue-picture');
+    picture.dataset.art = art;
+    picture.setAttribute('role','img');
+    picture.setAttribute('aria-label',issueArts[art]);
+    const copyright = node('span', '주제 일러스트', 'issue-art-note');
+    copyright.setAttribute('aria-hidden','true');
+    picture.append(copyright);
+    const content = node('div', undefined, 'issue-copy');
+    const location = item.category.startsWith('world') ? '해외' : '국내';
+    const link = external('원문 보기', item.url);
+    link.setAttribute('aria-label', item.title + ' 원문 보기');
+    content.append(node('p', location + ' · ' + issueSection[kind], 'issue-topic'),
+      node('h3', item.title), node('p', shortRecap(item.summary), 'issue-summary'),
+      node('p', item.source, 'issue-source'), link);
+    story.append(picture, content);
+    viewport.replaceChildren(story);
+    progress.textContent = String(issueIndex + 1) + ' / ' + list.length;
+    back.setAttribute('aria-disabled', String(issueIndex === 0));
+    next.setAttribute('aria-disabled', String(issueIndex === list.length - 1));
+    for (const [slot, button] of [...dots.children].entries()) {
+      if (slot === issueIndex) button.setAttribute('aria-current', 'true');
+      else button.removeAttribute('aria-current');
+    }
+  }
+
+  back.addEventListener('click', () => { if (issueIndex > 0) change(issueIndex - 1); });
+  next.addEventListener('click', () => { if (issueIndex < list.length - 1) change(issueIndex + 1); });
+  list.forEach((_, index) => {
+    const button = node('button');
+    button.type = 'button';
+    button.setAttribute('aria-label', String(index + 1) + '번째 이슈 보기');
+    button.addEventListener('click', () => change(index));
+    dots.append(button);
+  });
+  frame.addEventListener('keydown', event => {
+    const destinations = { ArrowLeft: issueIndex - 1, ArrowRight: issueIndex + 1, Home: 0, End: list.length - 1 };
+    if (!Object.hasOwn(destinations, event.key) || event.altKey || event.ctrlKey || event.metaKey) return;
+    event.preventDefault();
+    change(destinations[event.key]);
+  });
+  viewport.addEventListener('pointerdown', event => {
+    if (event.pointerType !== 'touch' || event.target.closest('a')) return;
+    firstTouch = [event.clientX, event.clientY];
+  });
+  viewport.addEventListener('pointercancel', () => { firstTouch = null; });
+  viewport.addEventListener('pointerup', event => {
+    if (!firstTouch) return;
+    const horizontal = event.clientX - firstTouch[0];
+    const vertical = event.clientY - firstTouch[1];
+    firstTouch = null;
+    if (Math.abs(horizontal) > 45 && Math.abs(horizontal) > Math.abs(vertical)) change(issueIndex - Math.sign(horizontal));
+  });
+  change(issueIndex);
+  section.append(frame);
+  articles.replaceChildren(section);
+}
+
 function showArticles() {
   if (!edition) return;
+  const topicTabs = filters.querySelector('.topic-tabs');
+  topicTabs.hidden = region === 'issue';
+  if (region === 'issue') {
+    for (const button of filters.querySelectorAll('button[data-region]')) {
+      button.setAttribute('aria-pressed', String(button.dataset.region === region));
+    }
+    showIssue();
+    return;
+  }
   const sections = [];
   if (topic === 'architecture') {
     const kinds = [[region + '-arch', regions[region] + ' 건축이슈']];
@@ -131,6 +292,7 @@ function makeTabs(label, className, choices, key) {
 async function openEdition(date) {
   const id = ++request;
   edition = null;
+  issueIndex = 0;
   articles.replaceChildren();
   articles.setAttribute('aria-busy','true');
   el('sources').hidden = true;

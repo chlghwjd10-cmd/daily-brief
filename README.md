@@ -18,6 +18,8 @@
 
 ## 데이터와 수집 상태
 
+- 어제의 ISSUE는 아침판 날짜의 전날(한국시간)에 발행된 기사 중 출처 요약이 있는 국내외 사회·경제와 건축 뉴스를 분야별로 최대 한 건씩 고릅니다. 이미지는 사건 현장과 별개인 주제 일러스트입니다.
+
 - 연합뉴스·SBS 뉴스·동아일보·매일경제의 사회·경제, BBC World·Business, ArchDaily의 발행사 RSS와 [건축HUB](https://www.hub.go.kr/portal/dps/dsr/idx-dsr-selectDesignPbpPbancList.do), [건축공간연구원](https://www.auri.re.kr/index.asp)의 공식 게시물을 사용합니다. [C3코리아](https://c3korea.com/category/recent/)의 최신 기사 목록와 [월간 SPACE](https://vmspace.com/news/news.html)의 뉴스 목록, [프로젝트 서울](https://project.seoul.go.kr/view/viewListNotice.do?noticeType=CPTT)의 공모 알림을 추가로 수집합니다. 기관 HTML이 바뀌면 해당 파서를 업데이트해야 합니다.
 - 국내·해외별 사회 4건, 경제 4건까지 표시합니다. 제목에서 주요 정책, 경제지표, 전국적 영향, 재난·안전 등의 신호를 반영해 우선순위를 정합니다. 국내는 매체당 최대 3건, 같은 매체의 같은 분야는 최대 2건을 표시합니다. 새 언론사 피드는 제목·날짜·원문 링크를 공개합니다.
 - 일반 뉴스는 제목과 공개 요약에서 공공건축, 설계공모, 도시계획, 문화유산 복원, 건축물 안전 등 관련성이 높은 기사를 국내외 건축이슈에 분류합니다. C3코리아는 제목·발행일·원문 링크를 수집합니다.

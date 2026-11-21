@@ -318,7 +318,36 @@ $digest = @(foreach ($item in ($items | Sort-Object @{Expression={ [bool]$_.cach
     $counts[$item.category] = 1 + [int]$counts[$item.category]
     $item
 })
-Write-Json (Join-Path $data "$day.json") @{ date = $day; checked = $now.ToString('o'); sources = @($statuses); items = @($digest | Sort-Object @{Expression={ [bool]$_.cached }; Ascending=$true}, @{Expression={$_.published}; Descending=$true}) }
+function Select-YesterdayIssues($candidates, [string]$yesterday) {
+    $ranked = @($candidates | Where-Object {
+        !$_.cached -and $_.published.StartsWith($yesterday) -and
+        $_.category -in @('kr-news','world-news','kr-arch','world-arch','competition','practice') -and
+        $_.summary.Length -ge 28 -and
+        $_.summary -notmatch '^(세부 내용은|기사 내용은|출처에서 별도의 요약|건축공간연구원)'
+    } | Sort-Object @{Expression={ if ($_.category -eq 'competition' -or $_.category -eq 'practice') { -1 } else { Get-NewsImportance $_.title } }; Descending=$true},
+                    @{Expression={$_.published}; Descending=$true})
+
+    $groups = @{}
+    $urls = @{}
+    $titles = @{}
+    $selected = [Collections.Generic.List[object]]::new()
+    foreach ($item in $ranked) {
+        $headline = ($item.title.Normalize([Text.NormalizationForm]::FormKC).ToLowerInvariant() -replace '[^\p{L}\p{N}]','')
+        if ($urls.ContainsKey($item.key) -or $titles.ContainsKey($headline)) { continue }
+        $group = if ($item.category -in @('competition','practice','kr-arch','world-arch')) { 'architecture' }
+            else { "$($item.category)/$($item.desk)" }
+        if ($groups.ContainsKey($group)) { continue }
+        $groups[$group] = $true
+        $urls[$item.key] = $true
+        $titles[$headline] = $true
+        $selected.Add($item)
+    }
+    return $selected.ToArray()
+}
+
+$issueDate = $now.AddDays(-1).ToString('yyyy-MM-dd')
+$issues = @(Select-YesterdayIssues $items $issueDate)
+Write-Json (Join-Path $data "$day.json") @{ date = $day; checked = $now.ToString('o'); issueDate = $issueDate; issues = $issues; sources = @($statuses); items = @($digest | Sort-Object @{Expression={ [bool]$_.cached }; Ascending=$true}, @{Expression={$_.published}; Descending=$true}) }
 $dates = @(Get-ChildItem -LiteralPath $data -Filter '????-??-??.json' | Sort-Object Name -Descending | ForEach-Object { $_.BaseName })
 Write-Json (Join-Path $data 'index.json') @{ dates = $dates }
 Write-Output ("{0} · {1} articles · {2} sources" -f $day,$digest.Count,$statuses.Count)
