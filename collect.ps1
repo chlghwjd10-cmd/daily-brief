@@ -91,7 +91,13 @@ function Get-PublisherCategory($title, $tags) {
 function Read-C3Listing($source) {
     $html = Get-Body $source.url $source.id
     $cards = [regex]::Matches($html, '(?is)<article\b[^>]*class="[^"]*\bjeg_post\b[^"]*"[^>]*>(.*?)</article>')
-    if (!$cards.Count) { throw 'C3 listing format not recognized' }
+    if (!$cards.Count) {
+        $pageTitle = Get-PlainText ([regex]::Match($html,'(?is)<title[^>]*>(.*?)</title>').Groups[1].Value)
+        if ($pageTitle.Length -gt 90) { $pageTitle = $pageTitle.Substring(0,90) }
+        $hasHeadings = $html.Contains('jeg_post_title')
+        $challenge = $html -match 'cf-chl|challenges\.cloudflare\.com|Checking your browser|Just a moment|captcha'
+        throw "C3 listing format not recognized (title: $pageTitle; size: $($html.Length); article headings: $hasHeadings; verification page: $challenge)"
+    }
     foreach ($card in $cards) {
         $heading = [regex]::Match($card.Value,'(?is)<h[23] class="jeg_post_title">\s*<a href="(?<url>[^"]+)"[^>]*>(?<title>.*?)</a>')
         $date = [regex]::Match($card.Value,'(?is)<div class="jeg_meta_date">.*?(\d{4}-\d{2}-\d{2})\s*</a>').Groups[1].Value
