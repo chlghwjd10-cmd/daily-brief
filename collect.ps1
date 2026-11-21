@@ -19,7 +19,7 @@ function Get-Body($url, $id) {
     }
     for ($attempt = 1; $attempt -le 2; $attempt++) {
         try {
-            if ($id -eq 'arch') {
+            if ($id -in @('arch','c3')) {
                 $file = [IO.Path]::GetTempFileName()
                 try {
                     $curl = if ($env:OS -eq 'Windows_NT') { 'curl.exe' } else { 'curl' }
@@ -70,6 +70,54 @@ function New-ItemRecord($source, $category, $title, $link, $dateText, $summary) 
     }
 }
 
+function Get-GeneralArchitectureCategory($source, $title, $description) {
+    if ($source.category -eq 'kr-news') {
+        if ($title -match '공공건축|설계\s*공모|건축가|건축사사무소|도시재생|도시계획|건축문화재|건축법|건축물\s*안전|건축\s*인허가|부실시공') { return 'kr-arch' }
+        if ($title -match '건립|재건축|재개발|리모델링|신축|복원|개관|붕괴' -and "$title $description" -match '공공시설|도서관|미술관|박물관|문화유산|문화재|설계안|설계변경|건축심의|구조\s*안전|주택\s*공급\s*계획') { return 'kr-arch' }
+    }
+    if ($source.category -eq 'world-news') {
+        if ($title -match '\b(architects?|architectural designs?|urban planning|design competition|building safety|heritage restoration|Pritzker)\b') { return 'world-arch' }
+        if ($title -match '\b(museum|library|buildings?|housing|landmark|heritage)\b' -and "$title $description" -match '\b(redevelopment|restoration|renovation|design unveiled|designed by|structural failure|planning approval)\b') { return 'world-arch' }
+    }
+}
+
+function Get-PublisherCategory($title, $tags) {
+    if ("$title $tags" -match '설계\s*공모|건축\s*공모|공모전|공모결과') { return 'competition' }
+    if ($tags -match '해외건축|해외뉴스|c3globe' -or $title -match '홍콩|타슈켄트|우즈베키스탄|벨기에|불가리아') { return 'world-arch' }
+    if ($title -match '건축상|건축가상|건축비평|건축포럼|건축계|건축가협회') { return 'practice' }
+    return 'kr-arch'
+}
+
+function Read-OfficialListing($source) {
+    $html = Get-Body $source.url $source.id
+    if ($source.id -eq 'space') {
+        $pattern = '(?is)<a\b[^>]*href="(?<url>[^"]*news_view\.html\?[^"]+)"[^>]*>\s*<div\b[^>]*>\s*<h4[^>]*>(?<title>.*?)</h4>\s*<p\b[^>]*class="lead-report"[^>]*>(?<summary>.*?)</p>\s*<p class="date">(?<date>\d{4}\.\d{2}\.\d{2})</p>'
+    } else {
+        $pattern = '(?is)<a\b[^>]*class="ps-notice-row[^"]*"[^>]*href="(?<url>/view/viewDetailCptt\.do\?[^"]+)"[^>]*>\s*<span class="dt[^"]*">\s*(?<date>\d{4}\.\d{2}\.\d{2})\s*</span>\s*<span class="ttl">\s*<span class="src">(?<competition>.*?)</span>(?<title>.*?)</span>'
+    }
+    $rows = [regex]::Matches($html,$pattern)
+    if (!$rows.Count) {
+        if ($source.id -eq 'seoul' -and $html -match '등록된 (게시물|공지사항)이 없습니다') { return }
+        throw 'Official listing format not recognized'
+    }
+    foreach ($row in $rows) {
+        $title = Get-PlainText $row.Groups['title'].Value
+        $summary = Get-PlainText $row.Groups['summary'].Value
+        $category = Get-PublisherCategory $title ''
+        if ($source.id -eq 'seoul') {
+            $category = 'competition'
+            $competition = Get-PlainText $row.Groups['competition'].Value
+            $title = "$competition $title"
+            $summary = '서울시 공식 공모 알림 · ' + $competition.Trim('[',']')
+        }
+        $date = $row.Groups['date'].Value.Replace('.','-')
+        $relative = [Net.WebUtility]::HtmlDecode($row.Groups['url'].Value)
+        $link = [Uri]::new([Uri]$source.url,$relative).AbsoluteUri
+        if ($summary.Length -gt 150) { $summary = $summary.Substring(0,150).TrimEnd() + '…' }
+        if (!$summary) { $summary = '세부 내용은 발행처 원문에서 확인할 수 있습니다.' }
+        New-ItemRecord $source $category $title $link $date $summary
+    }
+}
 function Read-Feed($source) {
     [xml]$xml = Get-Body $source.url $source.id
     if ($xml.DocumentElement.LocalName -ne 'rss' -or !$xml.SelectSingleNode('/rss/channel')) { throw 'Invalid feed' }
@@ -86,6 +134,13 @@ function Read-Feed($source) {
                 elseif ("$title $tags" -match 'Pritzker|appoint|obituary|firm merger|industry|practice|awards?') { 'practice' }
                 elseif ("$title $tags $description" -match '\b(South Korea|Republic of Korea|Seoul|Busan|Incheon|Jeju|Daejeon|Daegu|Gwangju)\b') { 'kr-arch' }
                 else { 'world-arch' }
+        }
+        $generalArchitecture = Get-GeneralArchitectureCategory $source $title $description
+        if ($generalArchitecture) { $category = $generalArchitecture }
+        if ($source.id -eq 'c3') {
+            $tags = ($entry.SelectNodes('category') | ForEach-Object { $_.InnerText }) -join ' '
+            $category = Get-PublisherCategory $title $tags
+            $description = ''
         }
         $summary = if ($description) { ($description -split '(?<=[.!?。])\s+', 2)[0] } else { '' }
         if ($summary.Length -gt 180) { $summary = $summary.Substring(0,180).TrimEnd() + '…' }
@@ -146,6 +201,7 @@ $statuses = foreach ($source in $sources) {
             $results = @(switch ($source.kind) {
                 'hub' { Read-Hub $source }
                 'auri' { Read-Auri $source }
+                'listing' { Read-OfficialListing $source }
                 default { Read-Feed $source }
             })
             $status.count = $results.Count
@@ -164,9 +220,9 @@ $statuses = foreach ($source in $sources) {
                 $response = $_.Exception.Response
                 if ($response) {
                     $challenge = $response.Headers -and ($response.Headers | Out-String) -match 'cf-mitigated'
-                    Write-Warning "ArchDaily RSS returned HTTP $([int]$response.StatusCode); challenge header: $challenge"
+                    Write-Warning "$($source.name) RSS returned HTTP $([int]$response.StatusCode); challenge header: $challenge"
                 } else {
-                    Write-Warning "ArchDaily RSS: $($_.Exception.Message). $($_.ScriptStackTrace)"
+                    Write-Warning "$($source.name) RSS: $($_.Exception.Message). $($_.ScriptStackTrace)"
                 }
             } else {
                 Write-Warning "$($source.id): collection failed ($($_.Exception.GetType().Name))"
@@ -179,12 +235,19 @@ $statuses = foreach ($source in $sources) {
 $seenUrls = @{}
 $seenTitles = @{}
 $counts = @{}
+$architectureCounts = @{}
 $digest = @(foreach ($item in ($items | Sort-Object @{Expression={ [bool]$_.cached }; Ascending=$true}, @{Expression={$_.published}; Descending=$true})) {
     $headline = ($item.title.Normalize([Text.NormalizationForm]::FormKC).ToLowerInvariant() -replace '[^\p{L}\p{N}]','')
     if ($seenUrls.ContainsKey($item.key) -or ($headline.Length -ge 12 -and $seenTitles.ContainsKey($headline))) { continue }
+    if ([int]$counts[$item.category] -ge 12) { continue }
+    if ($item.category -in @('kr-arch','world-arch') -and $item.sourceId -ne 'arch') {
+        $group = if ($item.sourceId -in @('yna-social','yna-economy','world','world-business')) { 'general' } else { $item.sourceId }
+        $slot = "$($item.category)/$group"
+        if ([int]$architectureCounts[$slot] -ge 6) { continue }
+        $architectureCounts[$slot] = 1 + [int]$architectureCounts[$slot]
+    }
     $seenUrls[$item.key] = $true
     $seenTitles[$headline] = $true
-    if ([int]$counts[$item.category] -ge 12) { continue }
     $counts[$item.category] = 1 + [int]$counts[$item.category]
     $item
 })

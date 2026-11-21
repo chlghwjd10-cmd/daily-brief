@@ -61,5 +61,32 @@
         "host":  "(^|\\.)auri\\.re\\.kr$",
         "kind":  "auri",
         "days":  14
+    },
+    {
+        "id":  "c3",
+        "name":  "C3코리아",
+        "days":  14,
+        "host":  "(^|\\.)c3korea\\.com$",
+        "info":  "https://c3korea.com/",
+        "category":  "kr-arch",
+        "url":  "https://c3korea.com/feed/"
+    },
+    {
+        "id":  "space",
+        "name":  "월간 SPACE",
+        "days":  14,
+        "kind":  "listing",
+        "host":  "(^|\\.)vmspace\\.com$",
+        "info":  "https://vmspace.com/main/main.html",
+        "url":  "https://vmspace.com/news/news.html"
+    },
+    {
+        "id":  "seoul",
+        "name":  "프로젝트 서울",
+        "days":  14,
+        "kind":  "listing",
+        "host":  "^project\\.seoul\\.go\\.kr$",
+        "info":  "https://project.seoul.go.kr/main/viewMain.do",
+        "url":  "https://project.seoul.go.kr/view/viewListNotice.do?noticeType=CPTT"
     }
 ]
