@@ -23,8 +23,8 @@ function Get-Body($url, $id) {
                 $file = [IO.Path]::GetTempFileName()
                 try {
                     $curl = if ($env:OS -eq 'Windows_NT') { 'curl.exe' } else { 'curl' }
-                    $status = & $curl --silent --show-error --location --max-redirs 5 --max-time 20 --user-agent 'DailyBrief/1.0 (news feed reader)' --output $file --write-out '%{http_code}' $url
-                    if ($LASTEXITCODE -ne 0 -or $status -ne '200') { throw "HTTP $status (curl exit $LASTEXITCODE)" }
+                    $status = & $curl --silent --show-error --location --max-redirs 5 --max-time 20 --user-agent 'DailyBrief/1.0 (news feed reader)' --output $file --write-out '%{http_code} %{content_type}' $url
+                    if ($LASTEXITCODE -ne 0 -or $status -notmatch '^200\s') { throw "HTTP $status (curl exit $LASTEXITCODE)" }
                     return [IO.File]::ReadAllText($file)
                 } finally {
                     [IO.File]::Delete($file)
@@ -228,13 +228,13 @@ $statuses = foreach ($source in $sources) {
                 $items.Add($copy)
             }
             $status.count = $cached.Count
-            if ($source.id -eq 'arch') {
+            if ($source.id -in @('arch','c3')) {
                 $response = $_.Exception.Response
                 if ($response) {
                     $challenge = $response.Headers -and ($response.Headers | Out-String) -match 'cf-mitigated'
                     Write-Warning "$($source.name) RSS returned HTTP $([int]$response.StatusCode); challenge header: $challenge"
                 } else {
-                    Write-Warning "$($source.name) RSS: $($_.Exception.Message). $($_.ScriptStackTrace)"
+                    Write-Warning "$($source.name) source: $($_.Exception.Message). $($_.ScriptStackTrace)"
                 }
             } else {
                 Write-Warning "$($source.id): collection failed ($($_.Exception.GetType().Name))"
