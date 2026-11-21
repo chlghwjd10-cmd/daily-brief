@@ -29,7 +29,7 @@ function Get-Body($url, $id) {
     }
 }
 
-function Clean([string]$value) {
+function Get-PlainText([string]$value) {
     $value = [regex]::Replace($value, '<(?:script|style)\b[^>]*>.*?</(?:script|style)>', '', 'IgnoreCase,Singleline')
     $value = [regex]::Replace($value, '<[^>]*>', ' ')
     return ([Net.WebUtility]::HtmlDecode($value) -replace '\s+', ' ').Trim()
@@ -63,10 +63,10 @@ function Read-Feed($source) {
     [xml]$xml = Get-Body $source.url $source.id
     if ($xml.DocumentElement.LocalName -ne 'rss' -or !$xml.SelectSingleNode('/rss/channel')) { throw 'Invalid feed' }
     foreach ($entry in $xml.SelectNodes('/rss/channel/item')) {
-        $title = Clean ($entry.SelectSingleNode('title').InnerText)
+        $title = Get-PlainText ($entry.SelectSingleNode('title').InnerText)
         $link = [string]$entry.SelectSingleNode('link').InnerText
         $date = [string]$entry.SelectSingleNode('pubDate').InnerText
-        $description = Clean ($entry.SelectSingleNode('description').InnerText)
+        $description = Get-PlainText ($entry.SelectSingleNode('description').InnerText)
         $description = $description -replace '^\([^)]{2,65}\)\s*[^=]{0,35}=\s*',''
         $category = $source.category
         if ($source.id -eq 'arch') {
@@ -96,10 +96,10 @@ function Read-Hub($source) {
             [regex]::Match($fields, '<p class="detail">([^<]+)').Groups[1].Value
             [regex]::Match($fields, '참가등록 기간\s*:[^<]+').Value
             [regex]::Match($fields, '작품접수 기간\s*:[^<]+').Value
-        ) | ForEach-Object { Clean $_ } | Where-Object { $_ }
+        ) | ForEach-Object { Get-PlainText $_ } | Where-Object { $_ }
         $summary = ($lines -join ' · ') -replace '\(D[+-]\d+\)', ''
         $link = 'https://www.hub.go.kr/portal/dps/dpr/idx-dpr-selectDprDesignDtlInfo.do?designPbpNo={0}&cycl={1}&detailMode={2}' -f $row.Groups['id'].Value,$row.Groups['round'].Value,$row.Groups['mode'].Value
-        New-ItemRecord $source 'competition' (Clean $row.Groups['title'].Value) $link $date $summary
+        New-ItemRecord $source 'competition' (Get-PlainText $row.Groups['title'].Value) $link $date $summary
     }
 }
 
@@ -109,9 +109,9 @@ function Read-Auri($source) {
     $rows = [regex]::Matches($html, $pattern)
     if (!$rows.Count) { throw 'Unknown research institute page' }
     foreach ($row in $rows) {
-        $type = Clean $row.Groups['type'].Value
+        $type = Get-PlainText $row.Groups['type'].Value
         if ($type -eq '언론기사') { continue }
-        $title = Clean $row.Groups['title'].Value
+        $title = Get-PlainText $row.Groups['title'].Value
         $date = $row.Groups['month'].Value.Replace('.','-') + '-' + $row.Groups['day'].Value
         $link = 'https://www.auri.re.kr' + [Net.WebUtility]::HtmlDecode($row.Groups['link'].Value)
         $category = if ($title -match '설계공모|건축공모') { 'competition' }
