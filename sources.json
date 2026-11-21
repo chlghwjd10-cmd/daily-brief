@@ -1,85 +1,65 @@
 [
-  {
-    "id": "yna-social",
-    "name": "연합뉴스 · 사회",
-    "url": "https://www.yna.co.kr/rss/society.xml",
-    "info": "https://www.yna.co.kr/rss/society.xml",
-    "host": "(^|\\.)yna\\.co\\.kr$",
-    "category": "kr-news",
-    "days": 2
-  },
-  {
-    "id": "yna-economy",
-    "name": "연합뉴스 · 경제",
-    "url": "https://www.yna.co.kr/rss/economy.xml",
-    "info": "https://www.yna.co.kr/rss/economy.xml",
-    "host": "(^|\\.)yna\\.co\\.kr$",
-    "category": "kr-news",
-    "days": 2
-  },
-  {
-    "id": "world",
-    "name": "BBC News · World",
-    "url": "https://feeds.bbci.co.uk/news/world/rss.xml",
-    "info": "https://feeds.bbci.co.uk/news/world/rss.xml",
-    "host": "(^|\\.)bbc\\.(co\\.uk|com)$",
-    "category": "world-news",
-    "days": 2
-  },
-  {
-    "id": "world-business",
-    "name": "BBC News · Business",
-    "url": "https://feeds.bbci.co.uk/news/business/rss.xml",
-    "info": "https://feeds.bbci.co.uk/news/business/rss.xml",
-    "host": "(^|\\.)bbc\\.(co\\.uk|com)$",
-    "category": "world-news",
-    "days": 2
-  },
-  {
-    "id": "arch",
-    "name": "ArchDaily",
-    "url": "https://www.archdaily.com/feed",
-    "info": "https://www.archdaily.com/feed",
-    "host": "(^|\\.)archdaily\\.com$",
-    "category": "world-arch",
-    "days": 7
-  },
-  {
-    "id": "hub",
-    "name": "건축HUB · 설계공모",
-    "url": "https://www.hub.go.kr/portal/dps/dsr/idx-dsr-selectDesignPbpPbancList.do",
-    "info": "https://www.hub.go.kr/portal/dps/dsr/idx-dsr-selectDesignPbpPbancList.do",
-    "host": "(^|\\.)hub\\.go\\.kr$",
-    "kind": "hub",
-    "days": 14
-  },
-  {
-    "id": "auri",
-    "name": "건축공간연구원",
-    "url": "https://www.auri.re.kr/index.asp",
-    "info": "https://www.auri.re.kr/index.asp",
-    "host": "(^|\\.)auri\\.re\\.kr$",
-    "kind": "auri",
-    "days": 14
-  },
-  {
-    "id": "g2b",
-    "name": "조달청 · 나라장터",
-    "url": "https://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoServcPPSSrch02",
-    "info": "https://www.data.go.kr/data/15129394/openapi.do",
-    "host": "(^|\\.)g2b\\.go\\.kr$",
-    "kind": "bids",
-    "secret": "G2B_KEY",
-    "days": 7
-  },
-  {
-    "id": "law",
-    "name": "법제처 · 국가법령정보센터",
-    "url": "https://www.law.go.kr/DRF/lawSearch.do",
-    "info": "https://open.law.go.kr/LSO/openApi/guideResult.do?htmlName=lsNwListGuide",
-    "host": "(^|\\.)law\\.go\\.kr$",
-    "kind": "law",
-    "secret": "LAW_OC",
-    "days": 30
-  }
+    {
+        "id":  "yna-social",
+        "name":  "연합뉴스 · 사회",
+        "url":  "https://www.yna.co.kr/rss/society.xml",
+        "info":  "https://www.yna.co.kr/rss/society.xml",
+        "host":  "(^|\\.)yna\\.co\\.kr$",
+        "category":  "kr-news",
+        "days":  2
+    },
+    {
+        "id":  "yna-economy",
+        "name":  "연합뉴스 · 경제",
+        "url":  "https://www.yna.co.kr/rss/economy.xml",
+        "info":  "https://www.yna.co.kr/rss/economy.xml",
+        "host":  "(^|\\.)yna\\.co\\.kr$",
+        "category":  "kr-news",
+        "days":  2
+    },
+    {
+        "id":  "world",
+        "name":  "BBC News · World",
+        "url":  "https://feeds.bbci.co.uk/news/world/rss.xml",
+        "info":  "https://feeds.bbci.co.uk/news/world/rss.xml",
+        "host":  "(^|\\.)bbc\\.(co\\.uk|com)$",
+        "category":  "world-news",
+        "days":  2
+    },
+    {
+        "id":  "world-business",
+        "name":  "BBC News · Business",
+        "url":  "https://feeds.bbci.co.uk/news/business/rss.xml",
+        "info":  "https://feeds.bbci.co.uk/news/business/rss.xml",
+        "host":  "(^|\\.)bbc\\.(co\\.uk|com)$",
+        "category":  "world-news",
+        "days":  2
+    },
+    {
+        "id":  "arch",
+        "name":  "ArchDaily",
+        "url":  "https://www.archdaily.com/feed",
+        "info":  "https://www.archdaily.com/feed",
+        "host":  "(^|\\.)archdaily\\.com$",
+        "category":  "world-arch",
+        "days":  7
+    },
+    {
+        "id":  "hub",
+        "name":  "건축HUB · 설계공모",
+        "url":  "https://www.hub.go.kr/portal/dps/dsr/idx-dsr-selectDesignPbpPbancList.do",
+        "info":  "https://www.hub.go.kr/portal/dps/dsr/idx-dsr-selectDesignPbpPbancList.do",
+        "host":  "(^|\\.)hub\\.go\\.kr$",
+        "kind":  "hub",
+        "days":  14
+    },
+    {
+        "id":  "auri",
+        "name":  "건축공간연구원",
+        "url":  "https://www.auri.re.kr/index.asp",
+        "info":  "https://www.auri.re.kr/index.asp",
+        "host":  "(^|\\.)auri\\.re\\.kr$",
+        "kind":  "auri",
+        "days":  14
+    }
 ]

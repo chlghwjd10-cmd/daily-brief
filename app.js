@@ -6,7 +6,6 @@ const categories = {
   'kr-arch': '국내 건축이슈',
   'world-arch': '해외 건축이슈',
   competition: '건축공모',
-  law: '건축법규',
   practice: '건축사·업계',
 };
 const el = id => document.getElementById(id);
@@ -101,6 +100,9 @@ async function openEdition(date) {
   try {
     const next = await json('data/' + date + '.json');
     if (request !== id) return;
+    const removedSources = new Set(['law', 'g2b']);
+    next.sources = next.sources.filter(source => !removedSources.has(source.id));
+    next.items = next.items.filter(item => !removedSources.has(item.sourceId));
     edition = next;
     const failures = edition.sources.filter(source => source.state === 'failed').length;
     const missing = edition.sources.filter(source => source.state === 'unconfigured').length;

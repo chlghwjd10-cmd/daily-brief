@@ -122,47 +122,6 @@ function Read-Auri($source) {
     }
 }
 
-function Read-Law($source) {
-    foreach ($term in @('건축법','건축사법','건축서비스산업 진흥법','녹색건축물 조성 지원법','건축물관리법')) {
-        $query = [Uri]::EscapeDataString($term)
-        $oc = [Uri]::EscapeDataString($env:LAW_OC)
-        [xml]$xml = Get-Body "$($source.url)?OC=$oc&target=law&type=XML&display=100&query=$query" $source.id
-        if ($xml.DocumentElement.LocalName -ne 'LawSearch' -or !$xml.SelectSingleNode('/LawSearch/totalCnt')) { throw 'Invalid law response' }
-        foreach ($entry in $xml.SelectNodes('/LawSearch/law')) {
-            $title = [string]$entry.법령명한글
-            $date = [string]$entry.공포일자
-            $effective = Parse-Date ([string]$entry.시행일자)
-            $id = [string]$entry.법령일련번호
-            if ($id -notmatch '^\d+$') { continue }
-            $summary = "공포 제$($entry.공포번호)호 · $($entry.제개정구분명) · $($entry.소관부처명)"
-            if ($effective) { $summary += " · 시행일 $($effective.ToString('yyyy-MM-dd'))" }
-            New-ItemRecord $source 'law' $title "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=$id" $date $summary
-        }
-    }
-}
-
-function Read-Bids($source) {
-    $key = [Uri]::EscapeDataString($env:G2B_KEY)
-    $start = $now.AddDays(-6).ToString('yyyyMMdd') + '0000'
-    $end = $now.ToString('yyyyMMddHHmm')
-    foreach ($term in @('설계공모','제안공모','건축공모')) {
-        $query = [Uri]::EscapeDataString($term)
-        $page = 1
-        do {
-            $url = "$($source.url)?serviceKey=$key&type=json&numOfRows=100&pageNo=$page&inqryDiv=1&inqryBgnDt=$start&inqryEndDt=$end&bidNtceNm=$query"
-            $payload = (Get-Body $url $source.id | ConvertFrom-Json).response
-            if ([string]$payload.header.resultCode -ne '00' -or $null -eq $payload.body.totalCount) { throw 'Invalid procurement response' }
-            foreach ($entry in $payload.body.items) {
-                $link = if ($entry.bidNtceDtlUrl) { $entry.bidNtceDtlUrl } else { $entry.bidNtceUrl }
-                $summary = "공고기관 $($entry.ntceInsttNm) · 공고번호 $($entry.bidNtceNo)-$($entry.bidNtceOrd)"
-                if ($entry.bidClseDt) { $summary += " · 입찰 마감 $($entry.bidClseDt)" }
-                New-ItemRecord $source 'competition' $entry.bidNtceNm $link $entry.bidNtceDt $summary
-            }
-            $page++
-        } while (($page - 1) * 100 -lt [int]$payload.body.totalCount)
-    }
-}
-
 $sources = Get-Content -Raw -Encoding UTF8 (Join-Path $PSScriptRoot 'sources.json') | ConvertFrom-Json
 $history = @(Get-ChildItem -LiteralPath $data -Filter '????-??-??.json' | Sort-Object Name -Descending)
 $previous = if ($history.Count) { Get-Content -Raw -Encoding UTF8 $history[0].FullName | ConvertFrom-Json }
@@ -176,8 +135,6 @@ $statuses = foreach ($source in $sources) {
             $results = @(switch ($source.kind) {
                 'hub' { Read-Hub $source }
                 'auri' { Read-Auri $source }
-                'law' { Read-Law $source }
-                'bids' { Read-Bids $source }
                 default { Read-Feed $source }
             })
             $status.count = $results.Count
@@ -192,7 +149,17 @@ $statuses = foreach ($source in $sources) {
                 $items.Add($copy)
             }
             $status.count = $cached.Count
-            Write-Warning "$($source.id): collection failed ($($_.Exception.GetType().Name))"
+            if ($source.id -eq 'arch') {
+                $response = $_.Exception.Response
+                if ($response) {
+                    $challenge = $response.Headers -and ($response.Headers | Out-String) -match 'cf-mitigated'
+                    Write-Warning "ArchDaily RSS returned HTTP $([int]$response.StatusCode); challenge header: $challenge"
+                } else {
+                    Write-Warning "ArchDaily RSS: $($_.Exception.Message)"
+                }
+            } else {
+                Write-Warning "$($source.id): collection failed ($($_.Exception.GetType().Name))"
+            }
         }
     }
     $status
