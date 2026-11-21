@@ -83,9 +83,25 @@ function Get-GeneralArchitectureCategory($source, $title, $description) {
 
 function Get-PublisherCategory($title, $tags) {
     if ("$title $tags" -match '설계\s*공모|건축\s*공모|공모전|공모결과') { return 'competition' }
-    if ($tags -match '해외건축|해외뉴스|c3globe' -or $title -match '홍콩|타슈켄트|우즈베키스탄|벨기에|불가리아') { return 'world-arch' }
+    if ($tags -match '해외건축|해외뉴스|c3globe|^세계$' -or $title -match '홍콩|타슈켄트|우즈베키스탄|벨기에|불가리아') { return 'world-arch' }
     if ($title -match '건축상|건축가상|건축비평|건축포럼|건축계|건축가협회') { return 'practice' }
     return 'kr-arch'
+}
+
+function Read-C3Listing($source) {
+    $html = Get-Body $source.url $source.id
+    $cards = [regex]::Matches($html, '(?is)<article\b[^>]*class="[^"]*\bjeg_post\b[^"]*"[^>]*>(.*?)</article>')
+    if (!$cards.Count) { throw 'C3 listing format not recognized' }
+    foreach ($card in $cards) {
+        $heading = [regex]::Match($card.Value,'(?is)<h[23] class="jeg_post_title">\s*<a href="(?<url>[^"]+)"[^>]*>(?<title>.*?)</a>')
+        $date = [regex]::Match($card.Value,'(?is)<div class="jeg_meta_date">.*?(\d{4}-\d{2}-\d{2})\s*</a>').Groups[1].Value
+        $tag = [regex]::Match($card.Value,'(?is)<div class="jeg_post_category"[^>]*>(.*?)</div>').Groups[1].Value
+        if (!$heading.Success -or !$date) { continue }
+        $title = Get-PlainText $heading.Groups['title'].Value
+        $link = [Net.WebUtility]::HtmlDecode($heading.Groups['url'].Value)
+        $category = Get-PublisherCategory $title (Get-PlainText $tag)
+        New-ItemRecord $source $category $title $link $date '기사 내용은 C3코리아 원문에서 확인할 수 있습니다.'
+    }
 }
 
 function Read-OfficialListing($source) {
@@ -137,11 +153,6 @@ function Read-Feed($source) {
         }
         $generalArchitecture = Get-GeneralArchitectureCategory $source $title $description
         if ($generalArchitecture) { $category = $generalArchitecture }
-        if ($source.id -eq 'c3') {
-            $tags = ($entry.SelectNodes('category') | ForEach-Object { $_.InnerText }) -join ' '
-            $category = Get-PublisherCategory $title $tags
-            $description = ''
-        }
         $summary = if ($description) { ($description -split '(?<=[.!?。])\s+', 2)[0] } else { '' }
         if ($summary.Length -gt 180) { $summary = $summary.Substring(0,180).TrimEnd() + '…' }
         if (!$summary -or $summary -eq $title -or $summary -match '^Read more') { $summary = '출처에서 별도의 요약을 제공하지 않았습니다.' }
@@ -202,6 +213,7 @@ $statuses = foreach ($source in $sources) {
                 'hub' { Read-Hub $source }
                 'auri' { Read-Auri $source }
                 'listing' { Read-OfficialListing $source }
+                'c3-listing' { Read-C3Listing $source }
                 default { Read-Feed $source }
             })
             $status.count = $results.Count
@@ -236,7 +248,13 @@ $seenUrls = @{}
 $seenTitles = @{}
 $counts = @{}
 $architectureCounts = @{}
-$digest = @(foreach ($item in ($items | Sort-Object @{Expression={ [bool]$_.cached }; Ascending=$true}, @{Expression={$_.published}; Descending=$true})) {
+$priority = @{
+    Expression = {
+        if ($_.category -in @('kr-arch','world-arch') -and $_.sourceId -in @('c3','space','yna-social','yna-economy','world','world-business')) { 0 } else { 1 }
+    }
+    Ascending = $true
+}
+$digest = @(foreach ($item in ($items | Sort-Object @{Expression={ [bool]$_.cached }; Ascending=$true}, $priority, @{Expression={$_.published}; Descending=$true})) {
     $headline = ($item.title.Normalize([Text.NormalizationForm]::FormKC).ToLowerInvariant() -replace '[^\p{L}\p{N}]','')
     if ($seenUrls.ContainsKey($item.key) -or ($headline.Length -ge 12 -and $seenTitles.ContainsKey($headline))) { continue }
     if ([int]$counts[$item.category] -ge 12) { continue }
@@ -251,7 +269,7 @@ $digest = @(foreach ($item in ($items | Sort-Object @{Expression={ [bool]$_.cach
     $counts[$item.category] = 1 + [int]$counts[$item.category]
     $item
 })
-Write-Json (Join-Path $data "$day.json") @{ date = $day; checked = $now.ToString('o'); sources = @($statuses); items = $digest }
+Write-Json (Join-Path $data "$day.json") @{ date = $day; checked = $now.ToString('o'); sources = @($statuses); items = @($digest | Sort-Object @{Expression={ [bool]$_.cached }; Ascending=$true}, @{Expression={$_.published}; Descending=$true}) }
 $dates = @(Get-ChildItem -LiteralPath $data -Filter '????-??-??.json' | Sort-Object Name -Descending | ForEach-Object { $_.BaseName })
 Write-Json (Join-Path $data 'index.json') @{ dates = $dates }
 Write-Output ("{0} · {1} articles · {2} sources" -f $day,$digest.Count,$statuses.Count)

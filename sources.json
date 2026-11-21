@@ -69,7 +69,8 @@
         "host":  "(^|\\.)c3korea\\.com$",
         "info":  "https://c3korea.com/",
         "category":  "kr-arch",
-        "url":  "https://c3korea.com/feed/"
+        "url":  "https://c3korea.com/category/recent/",
+        "kind":  "c3-listing"
     },
     {
         "id":  "space",

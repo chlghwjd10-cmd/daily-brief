@@ -18,7 +18,7 @@
 
 ## 데이터와 수집 상태
 
-- 연합뉴스 사회·경제, BBC World·Business, ArchDaily의 발행사 RSS와 [건축HUB](https://www.hub.go.kr/portal/dps/dsr/idx-dsr-selectDesignPbpPbancList.do), [건축공간연구원](https://www.auri.re.kr/index.asp)의 공식 게시물을 사용합니다. [C3코리아](https://c3korea.com/)의 RSS와 [월간 SPACE](https://vmspace.com/news/news.html)의 뉴스 목록, [프로젝트 서울](https://project.seoul.go.kr/view/viewListNotice.do?noticeType=CPTT)의 공모 알림을 추가로 수집합니다. 기관 HTML이 바뀌면 해당 파서를 업데이트해야 합니다.
+- 연합뉴스 사회·경제, BBC World·Business, ArchDaily의 발행사 RSS와 [건축HUB](https://www.hub.go.kr/portal/dps/dsr/idx-dsr-selectDesignPbpPbancList.do), [건축공간연구원](https://www.auri.re.kr/index.asp)의 공식 게시물을 사용합니다. [C3코리아](https://c3korea.com/category/recent/)의 최신 기사 목록와 [월간 SPACE](https://vmspace.com/news/news.html)의 뉴스 목록, [프로젝트 서울](https://project.seoul.go.kr/view/viewListNotice.do?noticeType=CPTT)의 공모 알림을 추가로 수집합니다. 기관 HTML이 바뀌면 해당 파서를 업데이트해야 합니다.
 - 일반 뉴스는 제목과 공개 요약에서 공공건축, 설계공모, 도시계획, 문화유산 복원, 건축물 안전 등 관련성이 높은 기사를 국내외 건축이슈에 분류합니다. C3코리아는 제목·발행일·원문 링크를 수집합니다.
 - 해외 기사의 RSS 요약은 출처 언어로 표시합니다. 요약은 RSS 설명의 첫 문장 또는 기관이 제공한 공고 정보를 사용하며, RSS에 요약이 없으면 그렇게 표시합니다. 발행사 본문·사진은 다운로드하지 않습니다. 공개 운영 전 발행사별 RSS 이용 조건을 확인하세요.
 - 날짜와 발행사 원문 주소가 확인된 항목을 표시합니다. 한 아침판에서 추적 매개변수를 제거한 URL과 정규화한 제목이 같은 항목은 한 번만 표시합니다. 제목이 서로 다른 동일 사건은 각각 표시될 수 있습니다.
