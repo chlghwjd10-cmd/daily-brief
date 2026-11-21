@@ -104,6 +104,74 @@ const issueArts = {
   technology: '반도체와 전력망을 그린 일러스트',
 };
 
+// Publicly licensed photographs reviewed for an exact article or named location.
+const issuePhotos = [
+  {
+    matches: item => item.sourceId.startsWith('yna-') &&
+      (/^https:\/\/www\.yna\.co\.kr\/view\/AKR20261120117100061(?:[?#]|$)/.test(item.url) ||
+       /평택시청/.test(item.title)),
+    url: 'https://upload.wikimedia.org/wikipedia/commons/f/f7/Pyeongtaek_City_Hall.JPG',
+    source: 'https://commons.wikimedia.org/wiki/File:Pyeongtaek_City_Hall.JPG',
+    label: '평택시청',
+    year: '2015',
+    credit: 'Hyolee2',
+    license: 'CC BY-SA 3.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by-sa/3.0/',
+  },
+  {
+    matches: item => /^https:\/\/www\.bbc\.co\.uk\/news\/articles\/ck20vl1dd8qzo(?:[?#]|$)/.test(item.url) ||
+      /\bHuntsville Unit\b/.test(item.title),
+    url: 'https://upload.wikimedia.org/wikipedia/commons/2/2e/HuntsvilleUnitHuntsvilleTX.jpg',
+    source: 'https://commons.wikimedia.org/wiki/File:HuntsvilleUnitHuntsvilleTX.jpg',
+    label: '텍사스 헌츠빌 교도소',
+    year: '2007',
+    credit: 'Nick DiFonzo',
+    license: 'CC BY 2.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by/2.0/',
+  },
+  {
+    matches: item => /\bRikers Island\b|라이커스\s*(섬|아일랜드)/i.test(item.title),
+    url: 'https://upload.wikimedia.org/wikipedia/commons/5/5b/Rikers_Island_from_the_air.JPG',
+    source: 'https://commons.wikimedia.org/wiki/File:Rikers_Island_from_the_air.JPG',
+    label: '뉴욕 라이커스섬',
+    year: '2008',
+    credit: 'Cdogsimmons',
+    license: '퍼블릭 도메인',
+  },
+];
+
+function showIssuePicture(picture, item, art) {
+  function illustration() {
+    picture.classList.remove('issue-picture-photo');
+    picture.dataset.art = art;
+    picture.setAttribute('role', 'img');
+    picture.setAttribute('aria-label', issueArts[art]);
+    const note = node('span', '주제 일러스트', 'issue-art-note');
+    note.setAttribute('aria-hidden', 'true');
+    picture.replaceChildren(note);
+  }
+
+  illustration();
+  const photo = issuePhotos.find(entry => entry.matches(item));
+  if (!photo) return;
+
+  const img = node('img', undefined, 'issue-news-photo');
+  img.alt = photo.label + ' 자료사진';
+  img.decoding = 'async';
+  img.referrerPolicy = 'no-referrer';
+  img.addEventListener('load', () => {
+    picture.classList.add('issue-picture-photo');
+    picture.removeAttribute('role');
+    picture.removeAttribute('aria-label');
+    const credit = node('figcaption', undefined, 'issue-photo-credit');
+    credit.append('자료사진 · ' + photo.label + ' (' + photo.year + ')', node('br'),
+      external(photo.credit + ' / Wikimedia Commons', photo.source), ' · ');
+    credit.append(photo.licenseUrl ? external(photo.license, photo.licenseUrl) : photo.license);
+    picture.replaceChildren(img, credit);
+  }, { once: true });
+  img.src = photo.url;
+}
+
 function issueKind(item) {
   if (item.category === 'competition' || item.category === 'practice' || item.category.endsWith('-arch')) return 'architecture';
   return desk(item);
@@ -188,13 +256,8 @@ function showIssue() {
     const art = issueArt(item, kind);
     const story = node('article', undefined, 'issue-card');
     story.setAttribute('aria-label', String(issueIndex + 1) + ' / ' + list.length);
-    const picture = node('div', undefined, 'issue-picture');
-    picture.dataset.art = art;
-    picture.setAttribute('role','img');
-    picture.setAttribute('aria-label',issueArts[art]);
-    const copyright = node('span', '주제 일러스트', 'issue-art-note');
-    copyright.setAttribute('aria-hidden','true');
-    picture.append(copyright);
+    const picture = node('figure', undefined, 'issue-picture');
+    showIssuePicture(picture, item, art);
     const content = node('div', undefined, 'issue-copy');
     const location = item.category.startsWith('world') ? '해외' : '국내';
     const link = external('원문 보기', item.url);

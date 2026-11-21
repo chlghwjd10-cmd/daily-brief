@@ -4,15 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="매일 아침 살펴보는 국내외 사회·경제와 건축 소식">
-<meta name="theme-color" content="#f4f2ea">
+<meta name="theme-color" content="#ffffff">
 <title>DAILY BRIEF | 아침 뉴스 브리핑</title>
 <link rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="style.css?v=4">
 <style>
-  :root { font-family: "Pretendard Variable", Pretendard, system-ui, "Malgun Gothic", sans-serif; }
+  :root { --paper: #fff; font-family: "Pretendard Variable", Pretendard, system-ui, "Malgun Gothic", sans-serif; }
   .brand h1 { font-family: inherit; letter-spacing: -.065em; }
+  .issue-card { background: #fff; }
+  .issue-picture { margin: 0; }
+  .issue-picture-photo { display: flex; flex-direction: column; aspect-ratio: auto; background: #fff; }
+  .issue-news-photo { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: contain; }
+  .issue-photo-credit { padding: .45rem .65rem; font-size: .78rem; color: var(--muted); }
+  .issue-photo-credit a { display: inline; min-height: auto; font: inherit; }
 </style>
-<script src="app.js?v=4" defer></script>
+<script src="app.js?v=5" defer></script>
 </head>
 <body>
 <a class="skip" href="#content">본문 바로가기</a>
