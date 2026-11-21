@@ -64,13 +64,13 @@
     },
     {
         "id":  "c3",
-        "name":  "C3코리아",
+        "name":  "C3코리아 · 위클리 브리핑",
         "days":  14,
-        "host":  "(^|\\.)c3korea\\.com$",
-        "info":  "https://c3korea.com/",
+        "host":  "^c3korea\\.stibee\\.com$",
+        "info":  "https://c3korea.stibee.com/",
         "category":  "kr-arch",
-        "url":  "https://c3korea.com/category/recent/",
-        "kind":  "c3-listing"
+        "url":  "https://c3korea.stibee.com/",
+        "kind":  "c3-newsletter"
     },
     {
         "id":  "space",

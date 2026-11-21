@@ -110,25 +110,21 @@ function Get-PublisherCategory($title, $tags) {
     return 'kr-arch'
 }
 
-function Read-C3Listing($source) {
+function Read-C3Newsletter($source) {
     $html = Get-Body $source.url $source.id
-    $cards = [regex]::Matches($html, '(?is)<article\b[^>]*class="[^"]*\bjeg_post\b[^"]*"[^>]*>(.*?)</article>')
-    if (!$cards.Count) {
-        $pageTitle = Get-PlainText ([regex]::Match($html,'(?is)<title[^>]*>(.*?)</title>').Groups[1].Value)
-        if ($pageTitle.Length -gt 90) { $pageTitle = $pageTitle.Substring(0,90) }
-        $hasHeadings = $html.Contains('jeg_post_title')
-        $challenge = $html -match 'cf-chl|challenges\.cloudflare\.com|Checking your browser|Just a moment|captcha|document\.cookie|enable javascript'
-        throw "C3 listing format not recognized (title: $pageTitle; size: $($html.Length); article headings: $hasHeadings; verification page: $challenge; script: $($html.Contains('<script')); markup: $($html.TrimStart().StartsWith('<')))"
+    $cards = [regex]::Matches($html,'(?is)<a\b[^>]*href="(?<url>/p/\d+)"[^>]*>(?<card>.*?)</a>')
+    $articles = foreach ($card in $cards) {
+        $body = $card.Groups['card'].Value
+        $title = Get-PlainText ([regex]::Match($body,'(?is)<p\b[^>]*class="[^"]*variant_title-xs[^"]*"[^>]*>(.*?)</p>').Groups[1].Value)
+        $dateText = Get-PlainText ([regex]::Match($body,'(?is)<p\b[^>]*class="[^"]*variant_label-sm[^"]*"[^>]*>(.*?)</p>').Groups[1].Value)
+        if (!$title -or $dateText -notmatch '^(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.$') { continue }
+        $date = '{0}-{1:D2}-{2:D2}' -f $Matches[1], [int]$Matches[2], [int]$Matches[3]
+        $link = [Uri]::new([Uri]$source.url,$card.Groups['url'].Value).AbsoluteUri
+        @{title=$title; date=$date; link=$link}
     }
-    foreach ($card in $cards) {
-        $heading = [regex]::Match($card.Value,'(?is)<h[23] class="jeg_post_title">\s*<a href="(?<url>[^"]+)"[^>]*>(?<title>.*?)</a>')
-        $date = [regex]::Match($card.Value,'(?is)<div class="jeg_meta_date">.*?(\d{4}-\d{2}-\d{2})\s*</a>').Groups[1].Value
-        $tag = [regex]::Match($card.Value,'(?is)<div class="jeg_post_category"[^>]*>(.*?)</div>').Groups[1].Value
-        if (!$heading.Success -or !$date) { continue }
-        $title = Get-PlainText $heading.Groups['title'].Value
-        $link = [Net.WebUtility]::HtmlDecode($heading.Groups['url'].Value)
-        $category = Get-PublisherCategory $title (Get-PlainText $tag)
-        New-ItemRecord $source $category $title $link $date '기사 내용은 C3코리아 원문에서 확인할 수 있습니다.'
+    if (!$articles) { throw 'C3 public newsletter archive did not include dated issues' }
+    foreach ($issue in ($articles | Sort-Object date -Descending | Select-Object -First 2)) {
+        New-ItemRecord $source 'kr-arch' $issue.title $issue.link $issue.date 'C3코리아가 발행하는 주간 건축 뉴스레터입니다. 작품과 건축계 소식은 원문에서 볼 수 있습니다.'
     }
 }
 
@@ -243,7 +239,7 @@ $statuses = foreach ($source in $sources) {
                 'hub' { Read-Hub $source }
                 'auri' { Read-Auri $source }
                 'listing' { Read-OfficialListing $source }
-                'c3-listing' { Read-C3Listing $source }
+                'c3-newsletter' { Read-C3Newsletter $source }
                 default { Read-Feed $source }
             })
             $status.count = $results.Count
@@ -323,7 +319,7 @@ function Select-YesterdayIssues($candidates, [string]$yesterday) {
         !$_.cached -and $_.published.StartsWith($yesterday) -and
         $_.category -in @('kr-news','world-news','kr-arch','world-arch','competition','practice') -and
         $_.summary.Length -ge 28 -and
-        $_.summary -notmatch '^(세부 내용은|기사 내용은|출처에서 별도의 요약|건축공간연구원)'
+        $_.summary -notmatch '^(세부 내용은|기사 내용은|출처에서 별도의 요약|건축공간연구원|C3코리아가 발행하는)'
     } | Sort-Object @{Expression={ if ($_.category -eq 'competition' -or $_.category -eq 'practice') { -1 } else { Get-NewsImportance $_.title } }; Descending=$true},
                     @{Expression={$_.published}; Descending=$true})
 
